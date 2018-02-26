@@ -14,6 +14,7 @@ import { FileNavigatorModel, FileNavigatorServices } from "./navigator-model";
 import { FileNavigatorWidget } from "./navigator-widget";
 import { NAVIGATOR_CONTEXT_MENU } from "./navigator-menu";
 import { NavigatorDecoratorService, NavigatorTreeDecorator } from './navigator-decorator-service';
+import { NavigatorEditorSynchronizer } from './navigator-editor-sync';
 
 export const FILE_NAVIGATOR_PROPS = <TreeProps>{
     ...defaultTreeProps,
@@ -42,6 +43,9 @@ export function createFileNavigatorContainer(parent: interfaces.Container): Cont
     child.bind(NavigatorDecoratorService).toSelf().inSingletonScope();
     child.rebind(TreeDecoratorService).toDynamicValue(ctx => ctx.container.get(NavigatorDecoratorService)).inSingletonScope();
     bindContributionProvider(child, NavigatorTreeDecorator);
+
+    child.bind(NavigatorEditorSynchronizer).toSelf().inSingletonScope();
+    child.get(NavigatorEditorSynchronizer); // to make it eager singleton
 
     return child;
 }

@@ -11,12 +11,15 @@ import { FrontendApplicationContribution, KeybindingContribution } from "@theia/
 import { FileNavigatorWidget, FILE_NAVIGATOR_ID } from "./navigator-widget";
 import { NavigatorMenuContribution } from './navigator-menu';
 import { FileNavigatorContribution } from './navigator-contribution';
+import { bindNavigatorPreferences } from './navigator-preferences';
 import { createFileNavigatorWidget } from "./navigator-container";
 import { WidgetFactory } from '@theia/core/lib/browser/widget-manager';
 import { CommandContribution } from '@theia/core/lib/common/command';
 import '../../src/browser/style/index.css';
 
 export default new ContainerModule(bind => {
+    bindNavigatorPreferences(bind);
+
     bind(FileNavigatorContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toDynamicValue(c => c.container.get(FileNavigatorContribution));
     bind(CommandContribution).toDynamicValue(c => c.container.get(FileNavigatorContribution));
