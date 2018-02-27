@@ -12,6 +12,8 @@ import { CommandContribution, CommandRegistry, Command } from '../common/command
 import { MessageService } from '../common/message-service';
 import { ApplicationShell } from './shell/application-shell';
 import { SHELL_TABBAR_CONTEXT_MENU } from './shell/tab-bars';
+import { ApplicationServer } from '../common/application-protocol';
+import { AboutDialog } from './about-dialog';
 import * as browser from './browser';
 
 export namespace CommonMenus {
@@ -119,6 +121,11 @@ export namespace CommonCommands {
         label: 'Quit'
     };
 
+    export const ABOUT_COMMAND: Command = {
+        id: 'core.about',
+        label: 'About'
+    };
+
 }
 
 export const supportCut = browser.isNative || document.queryCommandSupported('cut');
@@ -130,6 +137,9 @@ export const supportPaste = browser.isNative || (!browser.isChrome && document.q
 
 @injectable()
 export class CommonFrontendContribution implements MenuContribution, CommandContribution, KeybindingContribution {
+
+    @inject(ApplicationServer)
+    protected readonly appServer: ApplicationServer;
 
     constructor(
         @inject(ApplicationShell) protected readonly shell: ApplicationShell,
@@ -213,6 +223,11 @@ export class CommonFrontendContribution implements MenuContribution, CommandCont
             commandId: CommonCommands.COLLAPSE_PANEL.id,
             label: 'Collapse',
             order: '4'
+        });
+        registry.registerMenuAction(CommonMenus.HELP, {
+            commandId: CommonCommands.ABOUT_COMMAND.id,
+            label: 'About',
+            order: '9'
         });
     }
 
@@ -343,6 +358,9 @@ export class CommonFrontendContribution implements MenuContribution, CommandCont
                 /* FIXME implement QUIT of innermost command.  */
             }
         });
+        commandRegistry.registerCommand(CommonCommands.ABOUT_COMMAND, {
+            execute: () => this.openAbout()
+        });
     }
 
     registerKeybindings(registry: KeybindingRegistry): void {
@@ -426,5 +444,12 @@ export class CommonFrontendContribution implements MenuContribution, CommandCont
                 keybinding: "ctrlcmd+q"
             }
         );
+    }
+
+    protected async openAbout() {
+        const extensionsInfos = await this.appServer.getExtensionsInfos();
+        const applicationInfo = await this.appServer.getApplicationInfo();
+        const dialog = new AboutDialog(extensionsInfos, applicationInfo);
+        dialog.open();
     }
 }
