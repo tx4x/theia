@@ -6,11 +6,12 @@
  */
 
 import { injectable, inject, postConstruct } from "inversify";
-import { Disposable } from '@theia/core/lib/common';
-import { EditorManager, EditorWidget } from "@theia/editor/lib/browser";
+import { FocusTracker, Widget } from "@phosphor/widgets";
+import { ApplicationShell } from '@theia/core/lib/browser/shell/application-shell';
 import { ITreeNode, ISelectableTreeNode, IExpandableTreeNode, PreferenceChangeEvent } from "@theia/core/lib/browser";
 import { FileNavigatorModel } from "./navigator-model";
 import { NavigatorConfiguration, NavigatorPreferences } from "./navigator-preferences";
+import { RevealableInNavigator } from "./navigator-contribution";
 
 @injectable()
 export class NavigatorEditorSynchronizer {
@@ -18,13 +19,13 @@ export class NavigatorEditorSynchronizer {
     @inject(FileNavigatorModel)
     private readonly fileNavigatorModel: FileNavigatorModel;
 
-    @inject(EditorManager)
-    private readonly editorManager: EditorManager;
+    @inject(ApplicationShell)
+    protected readonly applicationShell: ApplicationShell;
 
     @inject(NavigatorPreferences)
-    private readonly navigatorPreferences: NavigatorPreferences;
+    protected readonly navigatorPreferences: NavigatorPreferences;
 
-    private activeEditorChangedSubscription: Disposable | undefined;
+    protected currentWidgetChangedListener: ((shell: ApplicationShell, args: FocusTracker.IChangedArgs<Widget>) => void) | undefined;
 
     @postConstruct()
     protected async init() {
@@ -41,27 +42,23 @@ export class NavigatorEditorSynchronizer {
 
     private linkWithEditorPreferenceChanged(linkWithEditorNewValue: boolean | undefined) {
         if (linkWithEditorNewValue) {
-            if (this.activeEditorChangedSubscription === undefined) {
-                this.activeEditorChangedSubscription = this.editorManager.onActiveEditorChanged(
-                    (editor: EditorWidget | undefined) => this.selectNodeByEditor(editor));
+            if (!this.currentWidgetChangedListener) {
+                this.currentWidgetChangedListener = (shell, args) => this.currentWidgetChangedHandler(shell, args);
+                this.applicationShell.currentChanged.connect(this.currentWidgetChangedListener);
             }
         } else {
-            if (this.activeEditorChangedSubscription !== undefined) {
-                this.activeEditorChangedSubscription.dispose();
-                this.activeEditorChangedSubscription = undefined;
+            if (this.currentWidgetChangedListener) {
+                this.applicationShell.currentChanged.disconnect(this.currentWidgetChangedListener);
+                this.currentWidgetChangedListener = undefined;
             }
         }
     }
 
-    /**
-     * Reveals and selects corresponding to given editor node in the navigator.
-     * If editor is undefined nothing happens.
-     *
-     * @param editor editor widget object to reveal its node in the navigator
-     */
-    selectNodeByEditor(editor: EditorWidget | undefined) {
-        if (editor) {
-            this.selectNodeById(this.editorIdToNavigatorNodeId(editor.id));
+    protected currentWidgetChangedHandler(shell: ApplicationShell, args: FocusTracker.IChangedArgs<Widget>): void {
+        const widget = this.applicationShell.currentWidget;
+        if (RevealableInNavigator.is(widget)) {
+            const editorFileUri = widget.uri;
+            this.selectNodeById(editorFileUri.toString());
         }
     }
 
@@ -69,12 +66,7 @@ export class NavigatorEditorSynchronizer {
      * Converts editor id to navigator node id.
      * Example: 'code-editor-opener:file:///home/user/workspace/README.md' => 'file:///home/user/workspace/README.md'
      *
-     * @param editorId id of editor tab
-     * @returns id of corresponding navigator node
      */
-    private editorIdToNavigatorNodeId(editorId: string) {
-        return editorId.substring(editorId.indexOf(':') + 1);
-    }
 
     /**
      * Reveals and selects node in the navigator by node id.

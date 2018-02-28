@@ -8,6 +8,17 @@
 import { injectable } from "inversify";
 import { FILE_NAVIGATOR_ID, FileNavigatorWidget } from './navigator-widget';
 import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
+import URI from '@theia/core/lib/common/uri';
+
+export interface RevealableInNavigator {
+    readonly uri: URI;
+}
+
+export namespace RevealableInNavigator {
+    export function is(arg: any): arg is RevealableInNavigator {
+        return arg && arg['uri'] instanceof URI;
+    }
+}
 
 @injectable()
 export class FileNavigatorContribution extends AbstractViewContribution<FileNavigatorWidget> {
