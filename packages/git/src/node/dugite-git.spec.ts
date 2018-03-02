@@ -366,8 +366,65 @@ describe('git', async function () {
 
     });
 
-    describe('diff', async () => {
+    describe('blame', async () => {
 
+        const init = async (git: Git, repository: Repository) => {
+            await git.exec(repository, ['init']);
+            if ((await git.exec(repository, ['config', 'user.name'], { successExitCodes: new Set([0, 1]) })).exitCode !== 0) {
+                await git.exec(repository, ['config', 'user.name', "User Name"]);
+            }
+            if ((await git.exec(repository, ['config', 'user.email'], { successExitCodes: new Set([0, 1]) })).exitCode !== 0) {
+                await git.exec(repository, ['config', 'user.email', "user.name@domain.com"]);
+            }
+        };
+
+        it('blame file', async () => {
+            const fileName = 'blame.me';
+            const root = track.mkdirSync('blame-file');
+            const filePath = path.join(root, fileName);
+            const localUri = FileUri.create(root).toString();
+            const repository = { localUri };
+
+            const writeContentLines = async (lines: string[]) => await fs.writeFile(filePath, lines.join('\n'), { encoding: 'utf8' });
+            const addAndCommit = async (message: string) => {
+                await git.exec(repository, ['add', '.']);
+                await git.exec(repository, ['commit', '-m', `${message}`]);
+            };
+            const expectBlame = async (expected: [number, string][]) => {
+                const actual = await git.blame(repository, fileName);
+                expect(actual).to.be.not.undefined;
+                const messages = new Map(actual!.commits.map<[string, string]>(c => [c.sha, c.summary]));
+                const lineMessages = actual!.lines.map(l => [l.line, messages.get(l.sha)]);
+                expect(lineMessages).to.be.deep.equal(expected);
+            };
+
+            const git = await createGit();
+            await init(git, repository);
+            await fs.createFile(filePath);
+
+            await writeContentLines(['🍏', '🍏', '🍏', '🍏', '🍏', '🍏']);
+            await addAndCommit('six 🍏');
+
+            await writeContentLines(['🍏', '🍐', '🍐', '🍏', '🍏', '🍏']);
+            await addAndCommit('replace two with 🍐');
+
+            await writeContentLines(['🍏', '🍐', '🍋', '🍋', '🍏', '🍏']);
+            await addAndCommit('replace two with 🍋');
+
+            await writeContentLines(['🍏', '🍐', '🍋', '🍌', '🍌', '🍏']);
+
+            await expectBlame([
+                [0, 'six 🍏'],
+                [1, 'replace two with 🍐'],
+                [2, 'replace two with 🍋'],
+                [3, 'uncommited'],
+                [4, 'uncommited'],
+                [5, 'six 🍏'],
+            ]);
+        });
+    });
+
+    describe('diff', async () => {
         const init = async (git: Git, repository: Repository) => {
             await git.exec(repository, ['init']);
             if ((await git.exec(repository, ['config', 'user.name'], { successExitCodes: new Set([0, 1]) })).exitCode !== 0) {
