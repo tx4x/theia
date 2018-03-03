@@ -10,7 +10,7 @@ import { FocusTracker, Widget } from "@phosphor/widgets";
 import { ApplicationShell } from '@theia/core/lib/browser/shell/application-shell';
 import { PreferenceChangeEvent, ISelectableTreeNode } from "@theia/core/lib/browser";
 import { FileNavigatorModel } from "./navigator-model";
-import { NavigatorConfiguration, NavigatorPreferences } from "./navigator-preferences";
+import { FileNavigatorConfiguration, FileNavigatorPreferences } from "./navigator-preferences";
 import { Navigatable } from "@theia/core/lib/browser/widgets/navigatable";
 
 @injectable()
@@ -22,21 +22,21 @@ export class NavigatorEditorSynchronizer {
     @inject(ApplicationShell)
     protected readonly applicationShell: ApplicationShell;
 
-    @inject(NavigatorPreferences)
-    protected readonly navigatorPreferences: NavigatorPreferences;
+    @inject(FileNavigatorPreferences)
+    protected readonly fileNavigatorPreferences: FileNavigatorPreferences;
 
     protected currentWidgetChangedListener: ((shell: ApplicationShell, args: FocusTracker.IChangedArgs<Widget>) => void) | undefined;
 
     @postConstruct()
     protected async init(): Promise<void> {
-        await this.navigatorPreferences.ready;
-        this.linkWithEditorPreferenceChanged(this.navigatorPreferences['navigator.linkWithEditor']);
-        this.navigatorPreferences.onPreferenceChanged(preference => this.onPreferenceChangedHandler(preference));
+        await this.fileNavigatorPreferences.ready;
+        this.linkWithEditorPreferenceChanged(this.fileNavigatorPreferences['navigator.linkWithEditor']);
+        this.fileNavigatorPreferences.onPreferenceChanged(preference => this.onPreferenceChangedHandler(preference));
     }
 
-    private onPreferenceChangedHandler(preference: PreferenceChangeEvent<NavigatorConfiguration>) {
+    private onPreferenceChangedHandler(preference: PreferenceChangeEvent<FileNavigatorConfiguration>) {
         if (preference.preferenceName === 'navigator.linkWithEditor') {
-            this.linkWithEditorPreferenceChanged(preference.newValue);
+            this.linkWithEditorPreferenceChanged(preference.newValue as boolean | undefined);
         }
     }
 
