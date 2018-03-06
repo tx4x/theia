@@ -42,7 +42,7 @@ export class FileNavigatorModel extends FileTreeModel {
      * @param targetFileUri uri to file whch should be revealed in the navigator
      * @returns true if file with given uri was revealed, false otherwise
      */
-    async revealFile(targetFileUri: URI): Promise<boolean> {
+    async revealFile(targetFileUri: URI): Promise<ITreeNode | undefined> {
         const navigatorNodeId = targetFileUri.toString();
         let node = this.getNode(navigatorNodeId);
 
@@ -53,17 +53,17 @@ export class FileNavigatorModel extends FileTreeModel {
                 if (!node.expanded) {
                     await this.expandNodePromise(node);
                 }
-                return true;
+                return node;
             }
             // shouldn't happen, root node is always directory, i.e. expandable
-            return false;
+            return undefined;
         }
 
         // fail stop condition
         if (targetFileUri.path.isRoot) {
             // file system root is reached but workspace root wasn't found, it means that
             // given uri is not in workspace root folder or points to not existing file.
-            return false;
+            return undefined;
         }
 
         if (await this.revealFile(targetFileUri.parent)) {
@@ -74,9 +74,9 @@ export class FileNavigatorModel extends FileTreeModel {
             if (IExpandableTreeNode.is(node) && !node.expanded) {
                 await this.expandNodePromise(node);
             }
-            return true;
+            return node;
         }
-        return false;
+        return undefined;
     }
 
     protected expandNodePromise(node: IExpandableTreeNode): Promise<void> {

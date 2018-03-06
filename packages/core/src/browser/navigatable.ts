@@ -1,15 +1,16 @@
 /*
- * Copyright (C) 2018 TypeFox and others.
+ * Copyright (C) 2018 Red Hat, Inc. and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-import URI from '../../common/uri';
+import URI from '../common/uri';
 
 export interface Navigatable {
     readonly targetUri: URI | undefined;
 }
+
 export namespace Navigatable {
     export function is(arg: Object | undefined): arg is Navigatable {
         return !!arg && 'targetUri' in arg;

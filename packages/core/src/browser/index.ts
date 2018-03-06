@@ -25,3 +25,4 @@ export * from './keybinding';
 export * from './keys';
 export * from './label-provider';
 export * from './widget-open-handler';
+export * from './navigatable';

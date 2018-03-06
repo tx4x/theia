@@ -7,7 +7,7 @@
 
 import { SelectionService } from '@theia/core/lib/common';
 import { Widget, BaseWidget, Message, Saveable, SaveableSource } from '@theia/core/lib/browser';
-import { Navigatable } from '@theia/core/lib/browser/widgets/navigatable';
+import { Navigatable } from '@theia/core/lib/browser';
 import URI from '@theia/core/lib/common/uri';
 import { TextEditor } from "./editor";
 
@@ -30,8 +30,8 @@ export class EditorWidget extends BaseWidget implements SaveableSource, Navigata
         return this.editor.document;
     }
 
-    get targetUri(): URI {
-        return this.editor.uri;
+    get targetUri(): URI | undefined {
+        return this.editor.targetUri;
     }
 
     protected onActivateRequest(msg: Message): void {
