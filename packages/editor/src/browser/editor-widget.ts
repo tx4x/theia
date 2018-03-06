@@ -6,8 +6,7 @@
  */
 
 import { SelectionService } from '@theia/core/lib/common';
-import { Widget, BaseWidget, Message, Saveable, SaveableSource } from '@theia/core/lib/browser';
-import { Navigatable } from '@theia/core/lib/browser';
+import { Widget, BaseWidget, Message, Saveable, SaveableSource, Navigatable } from '@theia/core/lib/browser';
 import URI from '@theia/core/lib/common/uri';
 import { TextEditor } from "./editor";
 

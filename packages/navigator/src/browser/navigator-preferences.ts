@@ -30,7 +30,7 @@ Configure glob patterns for excluding files and folders from the navigator. A re
 };
 
 export interface FileNavigatorConfiguration {
-    'navigator.linkWithEditor'?: boolean;
+    'navigator.linkWithEditor': boolean;
     'navigator.exclude': { [key: string]: boolean };
 }
 

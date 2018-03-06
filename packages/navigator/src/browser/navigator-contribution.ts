@@ -8,10 +8,9 @@
 import { injectable, inject, postConstruct } from "inversify";
 import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-contribution';
 import { CommandRegistry, MenuModelRegistry } from "@theia/core/lib/common";
-import { Navigatable, ITreeNode, ISelectableTreeNode, Widget, KeybindingRegistry } from "@theia/core/lib/browser";
+import { Navigatable, ISelectableTreeNode, Widget, KeybindingRegistry } from "@theia/core/lib/browser";
 import { SHELL_TABBAR_CONTEXT_MENU } from "@theia/core/lib/browser";
 import { FILE_NAVIGATOR_ID, FileNavigatorWidget } from './navigator-widget';
-import { FileNavigatorModel } from "./navigator-model";
 import { FileNavigatorPreferences } from "./navigator-preferences";
 
 export namespace FileNavigatorCommands {
@@ -23,8 +22,6 @@ export namespace FileNavigatorCommands {
 
 @injectable()
 export class FileNavigatorContribution extends AbstractViewContribution<FileNavigatorWidget> {
-
-    protected navigatorModel: FileNavigatorModel;
 
     constructor(
         @inject(FileNavigatorPreferences) protected readonly fileNavigatorPreferences: FileNavigatorPreferences
@@ -43,8 +40,6 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
 
     @postConstruct()
     protected async init() {
-        this.navigatorModel = (await this.widget).model;
-
         await this.fileNavigatorPreferences.ready;
         this.shell.currentChanged.connect(() => this.onCurrentWidgetChangedHandler());
     }
@@ -85,11 +80,11 @@ export class FileNavigatorContribution extends AbstractViewContribution<FileNavi
         if (Navigatable.is(widget)) {
             const fileUri = widget.targetUri;
             if (fileUri) {
-                this.navigatorModel.revealFile(fileUri).then((node: ITreeNode) => {
-                    if (ISelectableTreeNode.is(node)) {
-                        this.navigatorModel.selectNode(node);
-                    }
-                });
+                const { model } = await this.widget;
+                const node = await model.revealFile(fileUri);
+                if (ISelectableTreeNode.is(node)) {
+                    model.selectNode(node);
+                }
             }
         }
     }

@@ -49,10 +49,10 @@ export class MonacoDiffEditor extends MonacoEditor {
     }
 
     get targetUri(): URI | undefined {
-        if (this.modifiedModel.uri.startsWith('file://')) {
+        if (this.diffEditor.getModifiedEditor().getModel().uri.scheme === 'file') {
             return new URI(this.modifiedModel.uri);
         }
-        if (this.originalModel.uri.startsWith('file://')) {
+        if (this.diffEditor.getOriginalEditor().getModel().uri.scheme === 'file') {
             return new URI(this.originalModel.uri);
         }
     }
