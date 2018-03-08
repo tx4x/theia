@@ -11,6 +11,7 @@ import {
 } from '@theia/editor/lib/browser';
 import { GitFileBlame, Commit } from '../../common';
 import { Disposable, DisposableCollection } from '@theia/core';
+import * as moment from 'moment';
 
 export class AppliedDecorations implements Disposable {
     readonly toDispose = new DisposableCollection();
@@ -64,9 +65,9 @@ export class BlameDecorator {
         const commits = blame.commits;
         for (const commit of commits) {
             const sha = commit.sha;
-            const daysFromNow = this.daysFromNow(new Date(commit.author.timestamp));
-            const heat = this.getHeatColor(daysFromNow);
-            const content = this.formatContentLine(commit, daysFromNow);
+            const commitTime = moment(commit.author.timestamp);
+            const heat = this.getHeatColor(commitTime);
+            const content = this.formatContentLine(commit, commitTime);
             const short = sha.substr(0, 7);
             const selector = 'git' + short + '::before';
             beforeContentStyles.set(sha, new EditorDecorationStyle(selector, style => {
@@ -115,13 +116,8 @@ export class BlameDecorator {
         ${commit.summary}`;
     }
 
-    protected formatContentLine(commit: Commit, daysFromNow: number): string {
-        let when = `${daysFromNow} days ago`;
-        if (daysFromNow < 1) {
-            when = 'today';
-        } else if (daysFromNow === 2) {
-            when = 'yesterday';
-        }
+    protected formatContentLine(commit: Commit, commitTime: moment.Moment): string {
+        const when = commitTime.fromNow();
         const contentWidth = BlameDecorator.maxWidth - when.length - 2;
         let content = commit.summary.substring(0, contentWidth + 1);
         content.replace('\n', '↩︎');
@@ -138,16 +134,9 @@ export class BlameDecorator {
         return `${content} ${when}`;
     }
 
-    protected today = (() => {
-        const dateNow = new Date();
-        return Date.UTC(dateNow.getFullYear(), dateNow.getMonth(), dateNow.getDate());
-    })();
-
-    protected daysFromNow(date: Date): number {
-        return Math.floor(this.today - Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())) / (1000 * 60 * 60 * 24);
-    }
-
-    protected getHeatColor(daysFromNow: number): string {
+    protected now = moment();
+    protected getHeatColor(commitTime: moment.Moment): string {
+        const daysFromNow = this.now.diff(commitTime, 'days');
         let heat = 900;
         if (daysFromNow <= 1) {
             heat = 50;

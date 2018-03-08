@@ -15,6 +15,7 @@
     "fs-extra": "^4.0.2",
     "ts-md5": "^1.2.2",
     "octicons": "^7.1.0",
+    "moment": "^2.21.0",
     "diff": "^3.4.0"
   },
   "publishConfig": {
