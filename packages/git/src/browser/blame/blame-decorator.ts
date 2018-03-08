@@ -137,27 +137,31 @@ export class BlameDecorator {
     protected now = moment();
     protected getHeatColor(commitTime: moment.Moment): string {
         const daysFromNow = this.now.diff(commitTime, 'days');
-        let heat = 900;
-        if (daysFromNow <= 1) {
-            heat = 50;
-        } else if (daysFromNow <= 2) {
-            heat = 100;
-        } else if (daysFromNow <= 3) {
-            heat = 200;
-        } else if (daysFromNow <= 7) {
-            heat = 300;
-        } else if (daysFromNow <= 14) {
-            heat = 400;
-        } else if (daysFromNow <= 30) {
-            heat = 500;
-        } else if (daysFromNow <= 180) {
-            heat = 600;
-        } else if (daysFromNow <= 365) {
-            heat = 700;
-        } else if (daysFromNow <= 720) {
-            heat = 800;
+        if (daysFromNow <= 2) {
+            return `var(--md-orange-50)`;
         }
-        return `var(--md-deep-orange-${heat})`;
+        if (daysFromNow <= 5) {
+            return `var(--md-orange-100)`;
+        }
+        if (daysFromNow <= 10) {
+            return `var(--md-orange-200)`;
+        }
+        if (daysFromNow <= 15) {
+            return `var(--md-orange-300)`;
+        }
+        if (daysFromNow <= 60) {
+            return `var(--md-orange-400)`;
+        }
+        if (daysFromNow <= 180) {
+            return `var(--md-deep-orange-600)`;
+        }
+        if (daysFromNow <= 365) {
+            return `var(--md-deep-orange-700)`;
+        }
+        if (daysFromNow <= 720) {
+            return `var(--md-deep-orange-800)`;
+        }
+        return `var(--md-deep-orange-900)`;
     }
 
 }
@@ -172,8 +176,7 @@ export namespace BlameDecorator {
         height: '100%',
         margin: '0 26px -1px 0',
         display: 'inline-block',
-        borderLeft: `4px solid`,
-        borderRight: `4px solid`,
+        borderRight: `2px solid`,
     };
 
     export const continuationStyle = new EditorDecorationStyle('gitBlameContinuationLine::before', style => {
