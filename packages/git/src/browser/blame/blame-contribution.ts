@@ -12,6 +12,7 @@ import { BlameDecorator } from './blame-decorator';
 import { EDITOR_CONTEXT_MENU, EditorManager, EditorKeybindingContexts, EditorWidget } from '@theia/editor/lib/browser';
 import { BlameManager } from './blame-manager';
 import URI from '@theia/core/lib/common/uri';
+import { DiffUris } from '@theia/editor/lib/browser/diff-uris';
 
 export namespace BlameCommands {
     export const SHOW_GIT_ANNOTATIONS: Command = {
@@ -41,37 +42,42 @@ export class BlameContribution implements FrontendApplicationContribution, Comma
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand(BlameCommands.SHOW_GIT_ANNOTATIONS, {
             execute: () => {
-                const editor = this.currentEditor;
+                const editor = this.currentCodeEditor;
                 if (editor) {
                     this.showBlame(editor);
                 }
             },
             isVisible: () =>
-                !!this.currentEditor,
+                !!this.currentCodeEditor,
             isEnabled: () => {
-                const editor = this.currentEditor;
+                const editor = this.currentCodeEditor;
                 return !!editor && this.isBlameable(editor.editor.uri);
             }
         });
         commands.registerCommand(BlameCommands.CLEAR_GIT_ANNOTATIONS, {
             execute: () => {
-                const editor = this.currentEditor;
+                const editor = this.currentCodeEditor;
                 if (editor) {
                     this.clearBlame(editor.editor.uri);
                 }
             },
             isVisible: () =>
-                !!this.currentEditor,
+                !!this.currentCodeEditor,
             isEnabled: () => {
-                const editor = this.currentEditor;
+                const editor = this.currentCodeEditor;
                 return !!editor && this.appliedDecorations.has(editor.editor.uri.toString());
             }
         });
     }
 
-    protected get currentEditor(): EditorWidget | undefined {
+    protected get currentCodeEditor(): EditorWidget | undefined {
         const editor = this.editorManager.currentEditor;
-        return editor;
+        if (editor) {
+            if (!DiffUris.isDiffUri(editor.editor.uri)) {
+                return editor;
+            }
+        }
+        return undefined;
     }
 
     protected isBlameable(uri: string | URI): boolean {
