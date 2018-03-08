@@ -69,7 +69,7 @@ export class BlameDecorator {
             const heat = this.getHeatColor(commitTime);
             const content = this.formatContentLine(commit, commitTime);
             const short = sha.substr(0, 7);
-            const selector = 'git' + short + '::before';
+            const selector = 'git-' + short + '::before';
             beforeContentStyles.set(sha, new EditorDecorationStyle(selector, style => {
                 EditorDecorationStyle.copyStyle(BlameDecorator.defaultGutterStyles, style);
                 style.content = `'${content}'`;
@@ -172,19 +172,20 @@ export namespace BlameDecorator {
 
     export const defaultGutterStyles = <CSSStyleDeclaration>{
         width: `${maxWidth}ch`,
-        backgroundColor: 'var(--md-grey-100)',
+        color: 'var(--theia-ui-font-color0)',
+        backgroundColor: 'var(--theia-ui-font-color5)',
         height: '100%',
         margin: '0 26px -1px 0',
         display: 'inline-block',
         borderRight: `2px solid`,
     };
 
-    export const continuationStyle = new EditorDecorationStyle('gitBlameContinuationLine::before', style => {
+    export const continuationStyle = new EditorDecorationStyle('git-blame-continuation-line::before', style => {
         style.content = `'\u2007'`; // blank
     });
 
-    export const highlightStyle = new EditorDecorationStyle('gitBlameHighlight::before', style => {
-        style.backgroundColor = 'var(--theia-accent-color3)';
+    export const highlightStyle = new EditorDecorationStyle('git-blame-highlight::before', style => {
+        style.backgroundColor = 'var(--theia-ui-font-color4)';
     });
 
 }
