@@ -514,8 +514,15 @@ export class DugiteGit implements Git {
 
     async blame(repository: Repository, uri: string, options?: Git.Options.Blame): Promise<GitFileBlame | undefined> {
         const args = ['blame', '--root', '--incremental'];
-        const path = this.getFsPath(uri);
-        const gitResult = await this.exec(repository, [...args, '--', path]);
+        const file = Path.relative(this.getFsPath(repository), this.getFsPath(uri));
+        const repositoryPath = this.getFsPath(repository);
+        const dugiteStatus = await getStatus(repositoryPath);
+        const isUncommitted = (change: DugiteFileChange) => change.status === AppFileStatus.New && change.path === file;
+        const changes = dugiteStatus.workingDirectory.files;
+        if (changes.some(isUncommitted)) {
+            return undefined;
+        }
+        const gitResult = await this.exec(repository, [...args, '--', file]);
         const output = gitResult.stdout.trim();
         const blame = this.blameParser.parse(uri, output);
         return blame;

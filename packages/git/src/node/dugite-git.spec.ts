@@ -378,6 +378,37 @@ describe('git', async function () {
             }
         };
 
+        it('uncommitted file', async () => {
+            const fileName = 'uncommitted.file';
+            const root = track.mkdirSync('try-blame');
+            const filePath = path.join(root, fileName);
+            const localUri = FileUri.create(root).toString();
+            const repository = { localUri };
+
+            const writeContentLines = async (lines: string[]) => await fs.writeFile(filePath, lines.join('\n'), { encoding: 'utf8' });
+            const add = async () => {
+                await git.exec(repository, ['add', '.']);
+            };
+            const expectUndefinedBlame = async () => {
+                const uri = FileUri.create(path.join(root, fileName)).toString();
+                const actual = await git.blame(repository, uri);
+                expect(actual).to.be.undefined;
+            };
+
+            const git = await createGit();
+            await init(git, repository);
+            await fs.createFile(filePath);
+
+            await writeContentLines(['🍏', '🍏', '🍏', '🍏', '🍏', '🍏']);
+            await expectUndefinedBlame();
+
+            await add();
+            await expectUndefinedBlame();
+
+            await writeContentLines(['🍏', '🍐', '🍐', '🍏', '🍏', '🍏']);
+            await expectUndefinedBlame();
+        });
+
         it('blame file', async () => {
             const fileName = 'blame.me';
             const root = track.mkdirSync('blame-file');
@@ -391,7 +422,8 @@ describe('git', async function () {
                 await git.exec(repository, ['commit', '-m', `${message}`]);
             };
             const expectBlame = async (expected: [number, string][]) => {
-                const actual = await git.blame(repository, fileName);
+                const uri = FileUri.create(path.join(root, fileName)).toString();
+                const actual = await git.blame(repository, uri);
                 expect(actual).to.be.not.undefined;
                 const messages = new Map(actual!.commits.map<[string, string]>(c => [c.sha, c.summary]));
                 const lineMessages = actual!.lines.map(l => [l.line, messages.get(l.sha)]);
