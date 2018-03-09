@@ -65,7 +65,8 @@ export class BlameContribution implements FrontendApplicationContribution, Comma
                 !!this.currentCodeEditor,
             isEnabled: () => {
                 const editor = this.currentCodeEditor;
-                return !!editor && this.appliedDecorations.has(editor.editor.uri.toString());
+                const enabled = !!editor && this.appliedDecorations.has(editor.editor.uri.toString());
+                return enabled;
             }
         });
     }
@@ -88,19 +89,22 @@ export class BlameContribution implements FrontendApplicationContribution, Comma
 
     protected async showBlame(editorWidget: EditorWidget) {
         const uri = editorWidget.editor.uri;
+        let content = undefined;
         if (editorWidget.editor.document.dirty) {
-            await editorWidget.editor.document.save();
+            content = editorWidget.editor.document.getText();
         }
-        const blame = await this.blameManager.getBlame(uri.toString());
+        const blame = await this.blameManager.getBlame(uri.toString(), content);
         if (blame) {
             const toDispose = new DisposableCollection();
             this.appliedDecorations.set(uri.toString(), toDispose);
             const editor = editorWidget.editor;
             toDispose.push(this.decorator.decorate(blame, editor, editor.cursor.line));
             toDispose.push(editor.onDocumentContentChanged(() => this.clearBlame(uri)));
-            toDispose.push(editor.onCursorPositionChanged(position =>
-                this.decorator.decorate(blame, editor, position.line)
-            ));
+            toDispose.push(editor.onCursorPositionChanged(position => {
+                if (!toDispose.disposed) {
+                    this.decorator.decorate(blame, editor, position.line);
+                }
+            }));
             editorWidget.disposed.connect(() => this.clearBlame(uri));
         }
     }

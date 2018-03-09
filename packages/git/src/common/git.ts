@@ -466,6 +466,10 @@ export namespace Git {
          * Optional configuration for the `git blame` command.
          */
         export interface Blame {
+            /**
+             * Dirty state content.
+             */
+            readonly content?: string;
         }
 
     }

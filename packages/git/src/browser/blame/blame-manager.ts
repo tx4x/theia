@@ -23,12 +23,12 @@ export class BlameManager {
         return !!this.repositoryTracker.getPath(new URI(uri));
     }
 
-    async getBlame(uri: string): Promise<GitFileBlame | undefined> {
+    async getBlame(uri: string, content?: string): Promise<GitFileBlame | undefined> {
         const repository = this.repositoryTracker.selectedRepository;
         if (!repository) {
             return undefined;
         }
-        return this.git.blame(repository, uri);
+        return this.git.blame(repository, uri, { content });
     }
 
 }

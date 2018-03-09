@@ -262,7 +262,7 @@ export namespace GitBlameParser {
             if (summary.startsWith('"') && summary.endsWith('"')) {
                 summary = summary.substr(1, summary.length - 2);
             }
-            entry.summary = uncommitted ? 'uncommited' : summary;
+            entry.summary = uncommitted ? 'uncommitted' : summary;
         } else if (firstPart === 'previous') {
             entry.previousSha = parts[1];
         } else if (firstPart === 'filename') {
@@ -527,7 +527,11 @@ export class DugiteGit implements Git {
         if (changes.some(isUncommitted)) {
             return undefined;
         }
-        const gitResult = await this.exec(repository, [...args, '--', file]);
+        const stdin = options ? options.content : undefined;
+        if (stdin) {
+            args.push('--contents', '-');
+        }
+        const gitResult = await this.exec(repository, [...args, '--', file], { stdin });
         const output = gitResult.stdout.trim();
         const commitBodyReader = async (sha: string) => {
             if (GitBlameParser.isUncommittedSha(sha)) {

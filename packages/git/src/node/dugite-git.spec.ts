@@ -378,6 +378,45 @@ describe('git', async function () {
             }
         };
 
+        it('blame file with dirty content', async () => {
+            const fileName = 'blame.me.not';
+            const root = track.mkdirSync('blame-dirty-file');
+            const filePath = path.join(root, fileName);
+            const localUri = FileUri.create(root).toString();
+            const repository = { localUri };
+
+            const writeContentLines = async (lines: string[]) => await fs.writeFile(filePath, lines.join('\n'), { encoding: 'utf8' });
+            const addAndCommit = async (message: string) => {
+                await git.exec(repository, ['add', '.']);
+                await git.exec(repository, ['commit', '-m', `${message}`]);
+            };
+            const expectBlame = async (content: string, expected: [number, string][]) => {
+                const uri = FileUri.create(path.join(root, fileName)).toString();
+                const actual = await git.blame(repository, uri, { content });
+                expect(actual).to.be.not.undefined;
+                const messages = new Map(actual!.commits.map<[string, string]>(c => [c.sha, c.summary]));
+                const lineMessages = actual!.lines.map(l => [l.line, messages.get(l.sha)]);
+                expect(lineMessages).to.be.deep.equal(expected);
+            };
+
+            const git = await createGit();
+            await init(git, repository);
+            await fs.createFile(filePath);
+
+            await writeContentLines(['🍏', '🍏', '🍏', '🍏', '🍏', '🍏']);
+            await addAndCommit('six 🍏');
+
+            await expectBlame(['🍏', '🍐', '🍐', '🍏', '🍏', '🍏'].join('\n'),
+            [
+                [0, 'six 🍏'],
+                [1, 'uncommitted'],
+                [2, 'uncommitted'],
+                [3, 'six 🍏'],
+                [4, 'six 🍏'],
+                [5, 'six 🍏'],
+            ]);
+        });
+
         it('uncommitted file', async () => {
             const fileName = 'uncommitted.file';
             const root = track.mkdirSync('try-blame');
@@ -449,8 +488,8 @@ describe('git', async function () {
                 [0, 'six 🍏'],
                 [1, 'replace two with 🍐'],
                 [2, 'replace two with 🍋'],
-                [3, 'uncommited'],
-                [4, 'uncommited'],
+                [3, 'uncommitted'],
+                [4, 'uncommitted'],
                 [5, 'six 🍏'],
             ]);
         });
