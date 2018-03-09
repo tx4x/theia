@@ -157,12 +157,12 @@ export class CommitDetailsParser extends OutputParser<CommitWithChanges> {
 @injectable()
 export class GitBlameParser {
 
-    parse(fileUri: string, gitBlameOutput: string): GitFileBlame | undefined {
+    async parse(fileUri: string, gitBlameOutput: string, commitBody: (sha: string) => Promise<string>): Promise<GitFileBlame | undefined> {
         if (!gitBlameOutput) {
             return undefined;
         }
         const parsedEntries = this.parseEntries(gitBlameOutput);
-        return this.createFileBlame(fileUri, parsedEntries);
+        return await this.createFileBlame(fileUri, parsedEntries, commitBody);
     }
 
     protected parseEntries(rawOutput: string): GitBlameParser.Entry[] {
@@ -180,7 +180,7 @@ export class GitBlameParser {
         return result;
     }
 
-    protected createFileBlame(uri: string, blameEntries: GitBlameParser.Entry[]): GitFileBlame {
+    protected async createFileBlame(uri: string, blameEntries: GitBlameParser.Entry[], commitBody: (sha: string) => Promise<string>): Promise<GitFileBlame> {
         const commits = new Map<string, Commit>();
         const lines: CommitLine[] = [];
         for (const entry of blameEntries) {
@@ -196,6 +196,7 @@ export class GitBlameParser {
                         tzOffset: entry.authorTz,
                     },
                     summary: entry.summary,
+                    body: await commitBody(sha)
                 };
                 commits.set(sha, commit);
             }
@@ -231,12 +232,16 @@ export namespace GitBlameParser {
         summary?: string,
     }
 
+    export function isUncommittedSha(sha: string | undefined) {
+        return (sha || '').startsWith('0000000');
+    }
+
     export function pumpEntry(entry: Entry, outputLine: string): boolean {
         const parts = outputLine.split(' ');
         if (parts.length < 2) {
             return false;
         }
-        const uncommitted = (entry.sha || '').startsWith('0000000000000000000000000000000000000000');
+        const uncommitted = isUncommittedSha(entry.sha);
         const firstPart = parts[0];
         if (entry.sha === undefined) {
             entry.sha = firstPart;
@@ -524,7 +529,19 @@ export class DugiteGit implements Git {
         }
         const gitResult = await this.exec(repository, [...args, '--', file]);
         const output = gitResult.stdout.trim();
-        const blame = this.blameParser.parse(uri, output);
+        const commitBodyReader = async (sha: string) => {
+            if (GitBlameParser.isUncommittedSha(sha)) {
+                return '';
+            }
+            const revResult = await this.exec(repository, ['rev-list', '--format=%B', '--max-count=1', sha]);
+            const revOutput = revResult.stdout;
+            let nl = revOutput.indexOf('\n');
+            if (nl > 0) {
+                nl = revOutput.indexOf('\n', nl + 1);
+            }
+            return revOutput.substr(Math.max(0, nl)).trim();
+        };
+        const blame = await this.blameParser.parse(uri, output, commitBodyReader);
         return blame;
     }
 

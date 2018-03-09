@@ -454,6 +454,39 @@ describe('git', async function () {
                 [5, 'six 🍏'],
             ]);
         });
+
+        it('commit summary and body', async () => {
+            const fileName = 'blame.me';
+            const root = track.mkdirSync('blame-with-commit-body');
+            const filePath = path.join(root, fileName);
+            const localUri = FileUri.create(root).toString();
+            const repository = { localUri };
+
+            const writeContentLines = async (lines: string[]) => await fs.writeFile(filePath, lines.join('\n'), { encoding: 'utf8' });
+            const addAndCommit = async (message: string) => {
+                await git.exec(repository, ['add', '.']);
+                await git.exec(repository, ['commit', '-m', `${message}`]);
+            };
+            const expectBlame = async (expected: [number, string, string][]) => {
+                const uri = FileUri.create(path.join(root, fileName)).toString();
+                const actual = await git.blame(repository, uri);
+                expect(actual).to.be.not.undefined;
+                const messages = new Map(actual!.commits.map<[string, string[]]>(c => [c.sha, [c.summary, c.body!]]));
+                const lineMessages = actual!.lines.map(l => [l.line, ...messages.get(l.sha)!]);
+                expect(lineMessages).to.be.deep.equal(expected);
+            };
+
+            const git = await createGit();
+            await init(git, repository);
+            await fs.createFile(filePath);
+
+            await writeContentLines(['🍏']);
+            await addAndCommit('add 🍏\n* green\n* red');
+
+            await expectBlame([
+                [0, 'add 🍏', '* green\n* red']
+            ]);
+        });
     });
 
     describe('diff', async () => {
