@@ -12,18 +12,22 @@ import {
 import { GitFileBlame, Commit } from '../../common';
 import { Disposable, DisposableCollection } from '@theia/core';
 import * as moment from 'moment';
+import { HoverProvider, TextDocumentPositionParams, Hover, CancellationToken, Languages } from '@theia/languages/lib/common';
+import URI from '@theia/core/lib/common/uri';
 
 export class AppliedDecorations implements Disposable {
     readonly toDispose = new DisposableCollection();
     readonly previousDecorations: string[] = [];
+    blame: GitFileBlame | undefined;
 
     dispose(): void {
         this.toDispose.dispose();
+        this.blame = undefined;
     }
 }
 
 @injectable()
-export class BlameDecorator {
+export class BlameDecorator implements HoverProvider {
 
     @inject(EditorDecorationsService)
     protected readonly editorDecorationsService: EditorDecorationsService;
@@ -31,8 +35,48 @@ export class BlameDecorator {
     @inject(EditorManager)
     protected readonly editorManager: EditorManager;
 
+    @inject(Languages)
+    protected readonly languages: Languages;
+
     constructor(
     ) { }
+
+    protected registerHoverProvider(uri: string): Disposable {
+        if (this.languages.registerHoverProvider) {
+            return this.languages.registerHoverProvider([{ pattern: new URI(uri).withoutScheme().toString() }], this);
+        }
+        return Disposable.NULL;
+    }
+
+    async provideHover(params: TextDocumentPositionParams, token: CancellationToken): Promise<Hover> {
+        const { line } = params.position;
+        const uri = params.textDocument.uri;
+
+        const applications = this.applications.get(uri);
+        if (!applications) {
+            return { contents: '' };
+        }
+        const blame = applications.blame;
+        if (!blame) {
+            return { contents: '' };
+        }
+        const commitLine = blame.lines.find(l => l.line === line);
+        if (!commitLine) {
+            return { contents: '' };
+        }
+        const sha = commitLine.sha;
+        const commit = blame.commits.find(c => c.sha === sha)!;
+        const date = new Date(commit.author.timestamp);
+        let commitMessage = commit.summary + '\n' + (commit.body || '');
+        commitMessage = commitMessage.replace(/[`\>\#\*\_\-\+]/g, '\\$&').replace(/\n/g, '  \n');
+        const message = `${commit.sha}\n \n ${commit.author.name}, ${date.toString()}\n \n> ${commitMessage}`;
+
+        const hover = {
+            contents: [message],
+            range: Range.create(Position.create(line, 0), Position.create(line, 10 ^ 10))
+        };
+        return hover;
+    }
 
     protected applications = new Map<string, AppliedDecorations>();
 
@@ -42,6 +86,7 @@ export class BlameDecorator {
         if (!applications) {
             const that = applications = new AppliedDecorations();
             this.applications.set(uri, applications);
+            applications.toDispose.push(this.registerHoverProvider(uri));
             applications.toDispose.push(Disposable.create(() => {
                 this.applications.delete(uri);
             }));
@@ -53,14 +98,14 @@ export class BlameDecorator {
         applications.toDispose.pushAll(blameDecorations.styles);
         const newDecorations = blameDecorations.editorDecorations;
         const oldDecorations = applications.previousDecorations;
-        const appliedDecorations = editor.deltaDecorations({ uri, oldDecorations, newDecorations });
         applications.previousDecorations.length = 0;
+        const appliedDecorations = editor.deltaDecorations({ uri, oldDecorations, newDecorations });
         applications.previousDecorations.push(...appliedDecorations);
+        applications.blame = blame;
         return applications;
     }
 
     protected toDecorations(blame: GitFileBlame, highlightLine: number): BlameDecorations {
-        const hoverMessages = new Map<string, string>();
         const beforeContentStyles = new Map<string, EditorDecorationStyle>();
         const commits = blame.commits;
         for (const commit of commits) {
@@ -75,8 +120,6 @@ export class BlameDecorator {
                 style.content = `'${content}'`;
                 style.borderColor = heat;
             }));
-            const hoverMessage = this.formatHover(commit);
-            hoverMessages.set(sha, hoverMessage);
         }
         const commitLines = blame.lines;
         const highlightedCommitLine = commitLines.find(c => c.line === highlightLine);
@@ -87,10 +130,8 @@ export class BlameDecorator {
         for (const commitLine of commitLines) {
             const { line, sha } = commitLine;
             const beforeContentClassName = beforeContentStyles.get(sha)!.className;
-            const hoverMessage = hoverMessages.get(sha)!;
             const options = <EditorDecorationOptions>{
                 beforeContentClassName,
-                hoverMessage,
             };
             if (sha === highlightedSha) {
                 options.beforeContentClassName += ' ' + BlameDecorator.highlightStyle.className;
@@ -104,16 +145,6 @@ export class BlameDecorator {
         }
         const styles = [...beforeContentStyles.values()];
         return { editorDecorations, styles };
-    }
-
-    protected formatHover(commit: Commit): string {
-        const date = new Date(commit.author.timestamp);
-        return `
-        ${commit.sha}
-
-        ${commit.author.name}, ${date.toString()}
-
-        ${commit.summary}`;
     }
 
     protected formatContentLine(commit: Commit, commitTime: moment.Moment): string {
