@@ -15,17 +15,6 @@ import * as moment from 'moment';
 import { HoverProvider, TextDocumentPositionParams, Hover, CancellationToken, Languages } from '@theia/languages/lib/common';
 import URI from '@theia/core/lib/common/uri';
 
-export class AppliedDecorations implements Disposable {
-    readonly toDispose = new DisposableCollection();
-    readonly previousDecorations: string[] = [];
-    blame: GitFileBlame | undefined;
-
-    dispose(): void {
-        this.toDispose.dispose();
-        this.blame = undefined;
-    }
-}
-
 @injectable()
 export class BlameDecorator implements HoverProvider {
 
@@ -48,21 +37,22 @@ export class BlameDecorator implements HoverProvider {
         return Disposable.NULL;
     }
 
+    protected emptyHover: Hover = { contents: '' };
+
     async provideHover(params: TextDocumentPositionParams, token: CancellationToken): Promise<Hover> {
         const { line } = params.position;
         const uri = params.textDocument.uri;
-
-        const applications = this.applications.get(uri);
+        const applications = this.appliedDecorations.get(uri);
         if (!applications) {
-            return { contents: '' };
+            return this.emptyHover;
         }
         const blame = applications.blame;
         if (!blame) {
-            return { contents: '' };
+            return this.emptyHover;
         }
         const commitLine = blame.lines.find(l => l.line === line);
         if (!commitLine) {
-            return { contents: '' };
+            return this.emptyHover;
         }
         const sha = commitLine.sha;
         const commit = blame.commits.find(c => c.sha === sha)!;
@@ -78,28 +68,29 @@ export class BlameDecorator implements HoverProvider {
         return hover;
     }
 
-    protected applications = new Map<string, AppliedDecorations>();
+    protected appliedDecorations = new Map<string, AppliedBlameDecorations>();
 
     decorate(blame: GitFileBlame, editor: TextEditor, highlightLine: number): Disposable {
         const uri = editor.uri.toString();
-        let applications = this.applications.get(uri);
+        let applications = this.appliedDecorations.get(uri);
         if (!applications) {
-            const that = applications = new AppliedDecorations();
-            this.applications.set(uri, applications);
+            const that = applications = new AppliedBlameDecorations();
+            this.appliedDecorations.set(uri, applications);
             applications.toDispose.push(this.registerHoverProvider(uri));
             applications.toDispose.push(Disposable.create(() => {
-                this.applications.delete(uri);
+                this.appliedDecorations.delete(uri);
             }));
             applications.toDispose.push(Disposable.create(() => {
                 editor.deltaDecorations({ uri, oldDecorations: that.previousDecorations, newDecorations: [] });
             }));
         }
         const blameDecorations = this.toDecorations(blame, highlightLine);
-        applications.toDispose.pushAll(blameDecorations.styles);
+        applications.previousStyles.dispose();
+        applications.previousStyles.pushAll(blameDecorations.styles);
         const newDecorations = blameDecorations.editorDecorations;
         const oldDecorations = applications.previousDecorations;
-        applications.previousDecorations.length = 0;
         const appliedDecorations = editor.deltaDecorations({ uri, oldDecorations, newDecorations });
+        applications.previousDecorations.length = 0;
         applications.previousDecorations.push(...appliedDecorations);
         applications.blame = blame;
         return applications;
@@ -224,4 +215,17 @@ export namespace BlameDecorator {
 export interface BlameDecorations {
     editorDecorations: EditorDecoration[]
     styles: EditorDecorationStyle[]
+}
+
+export class AppliedBlameDecorations implements Disposable {
+    readonly toDispose = new DisposableCollection();
+    readonly previousStyles = new DisposableCollection();
+    readonly previousDecorations: string[] = [];
+    blame: GitFileBlame | undefined;
+
+    dispose(): void {
+        this.previousStyles.dispose();
+        this.toDispose.dispose();
+        this.blame = undefined;
+    }
 }
