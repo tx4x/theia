@@ -4,24 +4,39 @@
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
  */
-import { Message } from '@phosphor/messaging';
-import { AbstractDialog } from './dialogs';
-import { ExtensionInfo, ApplicationInfo } from '../common/application-protocol';
+import { inject, injectable, postConstruct } from 'inversify';
+import { AbstractDialog, DialogProps } from './dialogs';
+import { ApplicationServer } from '../common/application-protocol';
 
 export const ABOUT_CONTENT_CLASS = 'theia-aboutDialog';
 export const ABOUT_EXTENSIONS_CLASS = 'theia-aboutExtensions';
 
+@injectable()
+export class AboutDialogProps extends DialogProps {
+}
+
+@injectable()
 export class AboutDialog extends AbstractDialog<void> {
 
     protected readonly okButton: HTMLButtonElement;
 
-    constructor(extensionsInfos: ExtensionInfo[], applicationInfo?: ApplicationInfo) {
-        super({
-            title: `About Theia`
-        });
+    @inject(ApplicationServer)
+    protected readonly appServer: ApplicationServer;
 
+    constructor(
+        @inject(AboutDialogProps) protected readonly props: AboutDialogProps
+    ) {
+        super({
+            title: props.title
+        });
+    }
+
+    @postConstruct()
+    protected async init(): Promise<void> {
         const messageNode = document.createElement('div');
         messageNode.classList.add(ABOUT_CONTENT_CLASS);
+
+        const applicationInfo = await this.appServer.getApplicationInfo();
 
         if (applicationInfo) {
             const applicationInfoTitle = document.createElement('h3');
@@ -36,6 +51,8 @@ export class AboutDialog extends AbstractDialog<void> {
         const extensionInfoContent = document.createElement('ul');
         extensionInfoContent.classList.add(ABOUT_EXTENSIONS_CLASS);
         messageNode.appendChild(extensionInfoContent);
+
+        const extensionsInfos = await this.appServer.getExtensionsInfos();
 
         extensionsInfos.forEach(extension => {
             const extensionInfo = document.createElement('li');

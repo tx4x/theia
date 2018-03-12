@@ -12,7 +12,6 @@ import { CommandContribution, CommandRegistry, Command } from '../common/command
 import { MessageService } from '../common/message-service';
 import { ApplicationShell } from './shell/application-shell';
 import { SHELL_TABBAR_CONTEXT_MENU } from './shell/tab-bars';
-import { ApplicationServer } from '../common/application-protocol';
 import { AboutDialog } from './about-dialog';
 import * as browser from './browser';
 
@@ -138,12 +137,13 @@ export const supportPaste = browser.isNative || (!browser.isChrome && document.q
 @injectable()
 export class CommonFrontendContribution implements MenuContribution, CommandContribution, KeybindingContribution {
 
-    @inject(ApplicationServer)
-    protected readonly appServer: ApplicationServer;
+    // @inject(ApplicationServer)
+    // protected readonly appServer: ApplicationServer;
 
     constructor(
         @inject(ApplicationShell) protected readonly shell: ApplicationShell,
-        @inject(MessageService) protected readonly messageService: MessageService
+        @inject(MessageService) protected readonly messageService: MessageService,
+        @inject(AboutDialog) protected readonly aboutDialog: AboutDialog
     ) { }
 
     registerMenus(registry: MenuModelRegistry): void {
@@ -447,9 +447,10 @@ export class CommonFrontendContribution implements MenuContribution, CommandCont
     }
 
     protected async openAbout() {
-        const extensionsInfos = await this.appServer.getExtensionsInfos();
-        const applicationInfo = await this.appServer.getApplicationInfo();
-        const dialog = new AboutDialog(extensionsInfos, applicationInfo);
-        dialog.open();
+        // const extensionsInfos = await this.appServer.getExtensionsInfos();
+        // const applicationInfo = await this.appServer.getApplicationInfo();
+        // const dialog = new AboutDialog(extensionsInfos, applicationInfo);
+        // dialog.open();
+        this.aboutDialog.open();
     }
 }
