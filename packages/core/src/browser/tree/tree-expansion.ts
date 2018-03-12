@@ -25,7 +25,7 @@ export interface ITreeExpansionService extends Disposable {
      *
      * Return true if a node has been expanded; otherwise false.
      */
-    expandNode(node: Readonly<IExpandableTreeNode>): boolean;
+    expandNode(node: Readonly<IExpandableTreeNode>): Promise<boolean>;
     /**
      * If the given node is valid and expanded then collapse it.
      *
@@ -68,7 +68,7 @@ export class TreeExpansionService implements ITreeExpansionService {
 
     protected readonly onExpansionChangedEmitter = new Emitter<IExpandableTreeNode>();
 
-    constructor( @inject(ITree) protected readonly tree: ITree) {
+    constructor(@inject(ITree) protected readonly tree: ITree) {
         tree.onNodeRefreshed(node => {
             for (const child of node.children) {
                 if (IExpandableTreeNode.isExpanded(child)) {
@@ -90,19 +90,22 @@ export class TreeExpansionService implements ITreeExpansionService {
         this.onExpansionChangedEmitter.fire(node);
     }
 
-    expandNode(raw: IExpandableTreeNode): boolean {
-        const node = this.tree.validateNode(raw);
-        if (IExpandableTreeNode.isCollapsed(node)) {
-            return this.doExpandNode(node);
-        }
-        return false;
+    expandNode(raw: IExpandableTreeNode): Promise<boolean> {
+        return new Promise((resolve: (arg: boolean) => void) => {
+            const node = this.tree.validateNode(raw);
+            if (IExpandableTreeNode.isCollapsed(node)) {
+                this.doExpandNode(node).then(result => resolve(result));
+            } else {
+                resolve(false);
+            }
+        });
     }
 
-    protected doExpandNode(node: IExpandableTreeNode): boolean {
+    protected async doExpandNode(node: IExpandableTreeNode): Promise<boolean> {
         node.expanded = true;
+        const result = await this.tree.refresh(node);
         this.fireExpansionChanged(node);
-        this.tree.refresh(node);
-        return true;
+        return result;
     }
 
     collapseNode(raw: IExpandableTreeNode): boolean {

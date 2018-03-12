@@ -35,11 +35,11 @@ export interface ITree extends Disposable {
     /**
      * Refresh children of the root node.
      */
-    refresh(): void;
+    refresh(): Promise<boolean>;
     /**
      * Refresh children of the given node if it is valid.
      */
-    refresh(parent: Readonly<ICompositeTreeNode>): void;
+    refresh(parent: Readonly<ICompositeTreeNode>): Promise<boolean>;
     /**
      * Emit when the children of the give node are refreshed.
      */
@@ -209,14 +209,21 @@ export class Tree implements ITree {
         return this.getNode(id);
     }
 
-    refresh(raw?: ICompositeTreeNode): void {
-        const parent = !raw ? this._root : this.validateNode(raw);
-        if (ICompositeTreeNode.is(parent)) {
-            this.resolveChildren(parent).then(children => this.setChildren(parent, children));
-        }
-        // FIXME: it should not be here
-        // if the idea was to support refreshing of all kind of nodes, then API should be adapted
-        this.fireChanged();
+    refresh(raw?: ICompositeTreeNode): Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            const parent = !raw ? this._root : this.validateNode(raw);
+            if (ICompositeTreeNode.is(parent)) {
+                this.resolveChildren(parent).then(children => {
+                    this.setChildren(parent, children);
+                    resolve(true);
+                });
+            } else {
+                resolve(false);
+            }
+            // FIXME: it should not be here
+            // if the idea was to support refreshing of all kind of nodes, then API should be adapted
+            this.fireChanged();
+        });
     }
 
     protected resolveChildren(parent: ICompositeTreeNode): Promise<ITreeNode[]> {

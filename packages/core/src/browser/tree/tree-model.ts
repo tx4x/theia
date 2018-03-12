@@ -22,7 +22,7 @@ export interface ITreeModel extends ITree, ITreeSelectionService, ITreeExpansion
     /**
      * Expand a node taking into the account node selection if a given node is undefined.
      */
-    expandNode(node?: Readonly<IExpandableTreeNode>): boolean;
+    expandNode(node?: Readonly<IExpandableTreeNode>): Promise<boolean>;
     /**
      * Collapse a node taking into the account node selection if a given node is undefined.
      */
@@ -150,11 +150,11 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         return this.tree.validateNode(node);
     }
 
-    refresh(parent?: Readonly<ICompositeTreeNode>): void {
+    refresh(parent?: Readonly<ICompositeTreeNode>): Promise<boolean> {
         if (parent) {
-            this.tree.refresh(parent);
+            return this.tree.refresh(parent);
         } else {
-            this.tree.refresh();
+            return this.tree.refresh();
         }
     }
 
@@ -174,12 +174,15 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         return this.expansion.onExpansionChanged;
     }
 
-    expandNode(raw?: Readonly<IExpandableTreeNode>): boolean {
-        const node = raw || this.selectedNode;
-        if (IExpandableTreeNode.is(node)) {
-            return this.expansion.expandNode(node);
-        }
-        return false;
+    expandNode(raw?: Readonly<IExpandableTreeNode>): Promise<boolean> {
+        return new Promise((resolve: (arg: boolean) => void) => {
+            const node = raw || this.selectedNode;
+            if (IExpandableTreeNode.is(node)) {
+                this.expansion.expandNode(node).then(result => resolve(result));
+            } else {
+                resolve(false);
+            }
+        });
     }
 
     collapseNode(raw?: Readonly<IExpandableTreeNode>): boolean {

@@ -39,8 +39,8 @@ export class FileNavigatorModel extends FileTreeModel {
     /**
      * Reveals node in the navigator by given file uri.
      *
-     * @param targetFileUri uri to file whch should be revealed in the navigator
-     * @returns true if file with given uri was revealed, false otherwise
+     * @param targetFileUri uri to file which should be revealed in the navigator
+     * @returns file tree node if the file with given uri was revealed, undefined otherwise
      */
     async revealFile(targetFileUri: URI): Promise<ITreeNode | undefined> {
         const navigatorNodeId = targetFileUri.toString();
@@ -51,7 +51,7 @@ export class FileNavigatorModel extends FileTreeModel {
         if (this.root === node) {
             if (IExpandableTreeNode.is(node)) {
                 if (!node.expanded) {
-                    await this.expandNodePromise(node);
+                    await this.expandNode(node);
                 }
                 return node;
             }
@@ -72,24 +72,11 @@ export class FileNavigatorModel extends FileTreeModel {
                 node = this.getNode(navigatorNodeId);
             }
             if (IExpandableTreeNode.is(node) && !node.expanded) {
-                await this.expandNodePromise(node);
+                await this.expandNode(node);
             }
             return node;
         }
         return undefined;
-    }
-
-    protected expandNodePromise(node: IExpandableTreeNode): Promise<void> {
-        return new Promise(resolve => {
-            // onExpansionChanged event doesn't work here because it is fired before actual expanding
-            const subscribtion = this.onNodeRefreshed(expandedNode => {
-                if (node.expanded && expandedNode.id === node.id) {
-                    subscribtion.dispose();
-                    resolve();
-                }
-            });
-            this.expandNode(node);
-        });
     }
 
 }
