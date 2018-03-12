@@ -25,7 +25,7 @@ describe('tree-iterator', () => {
     const findNode = (id: string) => model.getNode(id);
 
     beforeEach(() => {
-        model.root = MockTreeModel.MOCK_ROOT();
+        model.root = MockTreeModel.HIERARCHICAL_MOCK_ROOT();
     });
 
     it('should include root', () => {

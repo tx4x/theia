@@ -22,6 +22,7 @@ export * from "@phosphor/messaging";
 export const DISABLED_CLASS = 'theia-mod-disabled';
 export const COLLAPSED_CLASS = 'theia-mod-collapsed';
 export const SELECTED_CLASS = 'theia-mod-selected';
+export const FOCUS_CLASS = 'theia-mod-focus';
 
 @injectable()
 export class BaseWidget extends Widget {

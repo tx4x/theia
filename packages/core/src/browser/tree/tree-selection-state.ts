@@ -10,14 +10,47 @@ import { DepthFirstTreeIterator } from './tree-iterator';
 import { TreeSelection, SelectableTreeNode } from './tree-selection';
 
 /**
- * Class for representing and managing the selection state of a tree.
+ * A tree selection that might contain additional information about the tree node that has the focus.
+ */
+export interface FocusableTreeSelection extends TreeSelection {
+
+    /**
+     * The tree node that has the focus in the tree selection. In case of a range selection,
+     * the `focus` differs from the `node`.
+     */
+    readonly focus?: SelectableTreeNode;
+
+}
+
+export namespace FocusableTreeSelection {
+
+    /**
+     * `true` if the argument is a focusable tree selection. Otherwise, `false`.
+     */
+    export function is(arg: object | undefined): arg is FocusableTreeSelection {
+        return TreeSelection.is(arg) && 'focus' in arg;
+    }
+
+    /**
+     * Returns with the tree node that has the focus if the argument is a focusable tree selection.
+     * Otherwise, returns `undefined`.
+     */
+    export function focus(arg: TreeSelection | undefined): SelectableTreeNode | undefined {
+        return is(arg) ? arg.focus : undefined;
+    }
+}
+
+/**
+ * Class for representing and managing the selection state and the focus of a tree.
  */
 export class TreeSelectionState {
 
-    constructor(protected tree: Tree, protected readonly selectionStack: ReadonlyArray<TreeSelection> = []) {
+    constructor(
+        protected readonly tree: Tree,
+        protected readonly selectionStack: ReadonlyArray<FocusableTreeSelection> = []) {
     }
 
-    nextState(selection: TreeSelection): TreeSelectionState {
+    nextState(selection: FocusableTreeSelection): TreeSelectionState {
         const { node, type } = {
             type: TreeSelection.SelectionType.DEFAULT,
             ...selection
@@ -30,130 +63,97 @@ export class TreeSelectionState {
         }
     }
 
-    selectedNodes(): ReadonlyArray<SelectableTreeNode> {
+    selection(): ReadonlyArray<SelectableTreeNode> {
         const copy = this.checkNoDefaultSelection(this.selectionStack);
-        const nodes: SelectableTreeNode[] = [];
-        let lastSelection: { node: SelectableTreeNode, type: TreeSelection.SelectionType | undefined } | undefined;
+        const nodes = new Set();
         for (let i = 0; i < copy.length; i++) {
             const { node, type } = copy[i];
-            if (type === TreeSelection.SelectionType.RANGE) {
-                if (lastSelection && lastSelection.type === TreeSelection.SelectionType.TOGGLE) {
-                    // We pop the item we saved to be able to calculate the range. See #handleRange.
-                    nodes.pop();
+            if (TreeSelection.isRange(type)) {
+                const selection = copy[i];
+                this.selectionRange(selection).forEach(n => nodes.add(n));
+            } else if (TreeSelection.isToggle(type)) {
+                if (nodes.has(node)) {
+                    nodes.delete(node);
+                } else {
+                    nodes.add(node);
                 }
-                nodes.push(...this.selectionRange(lastSelection ? lastSelection.node : undefined, node));
-            } else if (type === TreeSelection.SelectionType.TOGGLE) {
-                nodes.push(node);
             }
-            lastSelection = { node, type };
         }
-        return Array.from(new Set(nodes.reverse()).keys());
+        return Array.from(nodes.keys()).reverse();
     }
 
-    protected handleReset(state: TreeSelectionState): TreeSelectionState {
-        return new TreeSelectionState(this.tree);
+    get focus(): SelectableTreeNode | undefined {
+        const copy = this.checkNoDefaultSelection(this.selectionStack);
+        return copy[copy.length - 1].focus;
     }
 
-    protected handleDefault(state: TreeSelectionState, selectedNode: Readonly<SelectableTreeNode>): TreeSelectionState {
+    protected handleDefault(state: TreeSelectionState, node: Readonly<SelectableTreeNode>): TreeSelectionState {
         const { tree } = state;
-        // Internally, We replace all `DEFAULT` types with toggle.
         return new TreeSelectionState(tree, [{
-            node: selectedNode,
-            type: TreeSelection.SelectionType.TOGGLE
+            node,
+            type: TreeSelection.SelectionType.TOGGLE,
+            focus: node
         }]);
     }
 
-    protected handleToggle(state: TreeSelectionState, selectedNode: Readonly<SelectableTreeNode>): TreeSelectionState {
+    protected handleToggle(state: TreeSelectionState, node: Readonly<SelectableTreeNode>): TreeSelectionState {
         const { tree, selectionStack } = state;
         const copy = this.checkNoDefaultSelection(selectionStack).slice();
-
-        // Do not toggle (in this case; remove) the selection state when only one node is selected.
-        if (copy.length === 1) {
-            const { node, type } = copy[0];
-            if (type === TreeSelection.SelectionType.TOGGLE && node === selectedNode) {
-                return this;
-            }
-        }
-
-        // First, we check whether the toggle selection intersects any ranges.
-        // This can happen only when removing an individual selection.
-        // If so, we split the range selection into individual toggle selections.
-        let lastSelection: SelectableTreeNode | undefined;
-        for (let i = copy.length - 1; i >= 0; i--) {
-            lastSelection = (copy[i - 1] || {}).node;
-            const { node, type } = copy[i];
-            if (type === TreeSelection.SelectionType.RANGE) {
-                const range = this.selectionRange(lastSelection, node);
-                const index = range.indexOf(selectedNode);
-                if (index !== -1) {
-                    range.splice(index, 1);
-                    const rangeSubstitute = range.map(n => ({ node: n, type: TreeSelection.SelectionType.TOGGLE }));
-                    // Remove the first item, that is the border. We do not want to include twice.
-                    rangeSubstitute.shift();
-                    copy.splice(i, 1, ...rangeSubstitute);
-                    return new TreeSelectionState(tree, [...copy]);
+        const focus = (() => {
+            const allRanges = copy.filter(selection => TreeSelection.isRange(selection));
+            for (let i = allRanges.length - 1; i >= 0; i--) {
+                const latestRangeIndex = copy.indexOf(allRanges[i]);
+                const latestRangeSelection = copy[latestRangeIndex];
+                const latestRange = latestRangeSelection && latestRangeSelection.focus ? this.selectionRange(latestRangeSelection) : [];
+                if (latestRange.indexOf(node) !== -1) {
+                    if (this.focus === latestRangeSelection.focus) {
+                        return latestRangeSelection.focus || node;
+                    } else {
+                        return this.focus;
+                    }
                 }
             }
-        }
-
-        const toggle = { node: selectedNode, type: TreeSelection.SelectionType.TOGGLE };
-        const toRemove: number[] = [];
-        for (let i = copy.length - 1; i >= 0; i--) {
-            // We try to merge toggle selections. So that when a node has been selected twice with the toggle selection type, we remove both.
-            // We do this until we see another range selection in the stack.
-            const selection = copy[i];
-            const { node, type } = selection;
-            if (type === TreeSelection.SelectionType.RANGE) {
-                break;
-            }
-            if (node === selectedNode) {
-                toRemove.push(i);
-            }
-        }
-
-        toRemove.forEach(index => copy.splice(index, 1));
-        if (toRemove.length > 0) {
-            // If we merged selections together, we can omit the current selection.
-            return new TreeSelectionState(tree, [...copy]);
-        } else {
-            return new TreeSelectionState(tree, [...copy, toggle]);
-        }
+            return node;
+        })();
+        return new TreeSelectionState(tree, [...copy, {
+            node,
+            type: TreeSelection.SelectionType.TOGGLE,
+            focus
+        }]);
     }
 
-    protected handleRange(state: TreeSelectionState, selectedNode: Readonly<SelectableTreeNode>): TreeSelectionState {
+    protected handleRange(state: TreeSelectionState, node: Readonly<SelectableTreeNode>): TreeSelectionState {
         const { tree, selectionStack } = state;
         const copy = this.checkNoDefaultSelection(selectionStack).slice();
-        const range = { node: selectedNode, type: TreeSelection.SelectionType.RANGE };
-        const lastSelection = (copy[copy.length - 1] || {}).node;
-        const toRemove: number[] = [];
-        for (let i = copy.length - 1; i >= 0; i--) {
-            // We try to merge all the toggle selections into the range. So that when a range contains a toggle selection, we remove the toggle selection.
-            // We do this until we see another range selection in the stack. Expect when the last selection was a range as well.
-            // If the most recent selection was a range, we are just trying to modify that right now.
-            const selection = copy[i];
-            const { node, type } = selection;
-            if (type === TreeSelection.SelectionType.RANGE) {
-                // When trying to modify the most recent range selection.
-                if (i === copy.length - 1) {
-                    copy.pop();
+        let focus = FocusableTreeSelection.focus(copy[copy.length - 1]);
+
+        // Drop the previous range when we are trying to modify that.
+        if (TreeSelection.isRange(copy[copy.length - 1])) {
+            const range = this.selectionRange(copy.pop()!);
+            // And we drop all preceeding individual nodes that were contained in the range we are dropping.
+            // That means, anytime we cover individual nodes with a range, they will belong to the range so we need to drop them now.
+            for (let i = copy.length - 1; i >= 0; i--) {
+                if (range.indexOf(copy[i].node) !== -1) {
+                    // Make sure to keep a reference to the focus while we are discarding previous elements. Otherwise, we lose this information.
+                    focus = copy[i].focus;
+                    copy.splice(i, 1);
                 }
-                break;
-            }
-            const index = this.selectionRange(lastSelection, range.node).indexOf(node);
-            if (index !== -1) {
-                toRemove.push(i);
             }
         }
-        // We never drop the very first item, otherwise we lose the range start information. A range selection must come after a toggle.
-        toRemove.shift();
-        toRemove.forEach(index => copy.splice(index, 1));
-        return new TreeSelectionState(tree, [...copy, range]);
+        return new TreeSelectionState(tree, [...copy, {
+            node,
+            type: TreeSelection.SelectionType.RANGE,
+            focus
+        }]);
     }
 
     /**
-     * Returns with an array of items representing the selection range. Both the `fromNode` and the `toNode` are inclusive.
+     * Returns with an array of items representing the selection range. The from node is the `focus` the to node
+     * is the selected node itself on the tree selection. Both the `from` node and the `to` node are inclusive.
      */
-    protected selectionRange(fromNode: Readonly<SelectableTreeNode> | undefined, toNode: Readonly<SelectableTreeNode>): Readonly<SelectableTreeNode>[] {
+    protected selectionRange(selection: FocusableTreeSelection): Readonly<SelectableTreeNode>[] {
+        const fromNode = selection.focus;
+        const toNode = selection.node;
         if (fromNode === undefined) {
             return [];
         }
@@ -202,7 +202,7 @@ export class TreeSelectionState {
     /**
      * Checks whether the argument contains any `DEFAULT` tree selection type. If yes, throws an error, otherwise returns with a reference the argument.
      */
-    protected checkNoDefaultSelection(selections: ReadonlyArray<TreeSelection>): ReadonlyArray<TreeSelection> {
+    protected checkNoDefaultSelection<T extends TreeSelection>(selections: ReadonlyArray<T>): ReadonlyArray<T> {
         if (selections.some(selection => selection.type === undefined || selection.type === TreeSelection.SelectionType.DEFAULT)) {
             throw new Error(`Unexpected DEFAULT selection type. [${selections.map(selection => `ID: ${selection.node.id} | ${selection.type}`).join(', ')}]`);
         }

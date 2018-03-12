@@ -21,11 +21,13 @@ export namespace MockTreeModel {
             const { id } = root;
             const name = id;
             const selected = false;
+            const focus = false;
             const expanded = true;
             const node: CompositeTreeNode & SelectableTreeNode = {
                 id,
                 name,
                 selected,
+                focus,
                 parent: parent,
                 children: []
             };
@@ -41,7 +43,7 @@ export namespace MockTreeModel {
         }
     }
 
-    export const MOCK_ROOT = () => Node.toTreeNode({
+    export const HIERARCHICAL_MOCK_ROOT = () => Node.toTreeNode({
         "id": "1",
         "children": [
             {
@@ -79,6 +81,45 @@ export namespace MockTreeModel {
             },
             {
                 "id": "1.3"
+            }
+        ]
+    });
+
+    export const FLAT_MOCK_ROOT = () => Node.toTreeNode({
+        "id": 'ROOT',
+        "children": [
+            {
+                "id": "1"
+            },
+            {
+                "id": "2"
+            },
+            {
+                "id": "3"
+            },
+            {
+                "id": "4"
+            },
+            {
+                "id": "5"
+            },
+            {
+                "id": "6"
+            },
+            {
+                "id": "7"
+            },
+            {
+                "id": "8"
+            },
+            {
+                "id": "9"
+            },
+            {
+                "id": "10"
+            },
+            {
+                "id": "11"
             }
         ]
     });

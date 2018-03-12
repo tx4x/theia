@@ -112,10 +112,10 @@ all of MD as it is not optimized for dense, information rich UIs.
   --theia-brand-color2: var(--md-blue-300);
   --theia-brand-color3: var(--md-blue-100);
 
-  --theia-accent-color0: var(--md-blue-900);
-  --theia-accent-color1: var(--md-blue-700);
-  --theia-accent-color2: var(--md-blue-500);
-  --theia-accent-color3: var(--md-blue-100);
+  --theia-accent-color0: var(--md-blue-500);
+  --theia-accent-color1: var(--md-blue-400);
+  --theia-accent-color2: var(--md-blue-300);
+  --theia-accent-color3: var(--md-blue-200);
   --theia-accent-color4: var(--md-grey-200);
   --theia-accent-color5: var(--md-grey-200);
   

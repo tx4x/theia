@@ -68,6 +68,22 @@ export namespace TreeSelection {
         return !!arg && 'node' in arg;
     }
 
+    export function isRange(arg: TreeSelection | SelectionType | undefined): boolean {
+        return isSelectionTypeOf(arg, SelectionType.RANGE);
+    }
+
+    export function isToggle(arg: TreeSelection | SelectionType | undefined): boolean {
+        return isSelectionTypeOf(arg, SelectionType.TOGGLE);
+    }
+
+    function isSelectionTypeOf(arg: TreeSelection | SelectionType | undefined, expected: SelectionType): boolean {
+        if (arg === undefined) {
+            return false;
+        }
+        const type = typeof arg === 'number' ? arg : arg.type;
+        return type === expected;
+    }
+
 }
 
 /**
@@ -80,6 +96,11 @@ export interface SelectableTreeNode extends TreeNode {
      */
     selected: boolean;
 
+    /**
+     * `true` if the tree node has the focus. Otherwise, `false`. Defaults to `false`.
+     */
+    focus?: boolean;
+
 }
 
 export namespace SelectableTreeNode {
@@ -90,6 +111,10 @@ export namespace SelectableTreeNode {
 
     export function isSelected(node: TreeNode | undefined): node is SelectableTreeNode {
         return is(node) && node.selected;
+    }
+
+    export function hasFocus(node: TreeNode | undefined): boolean {
+        return is(node) && node.focus === true;
     }
 
     export function isVisible(node: TreeNode | undefined): node is SelectableTreeNode {
@@ -125,7 +150,7 @@ export class TreeSelectionServiceImpl implements TreeSelectionService {
     }
 
     get selectedNodes(): ReadonlyArray<Readonly<SelectableTreeNode>> {
-        return this.state.selectedNodes();
+        return this.state.selection();
     }
 
     get onSelectionChanged(): Event<ReadonlyArray<Readonly<SelectableTreeNode>>> {
@@ -133,7 +158,7 @@ export class TreeSelectionServiceImpl implements TreeSelectionService {
     }
 
     protected fireSelectionChanged(): void {
-        this.onSelectionChangedEmitter.fire(this.state.selectedNodes());
+        this.onSelectionChangedEmitter.fire(this.state.selection());
     }
 
     addSelection(selectionOrTreeNode: TreeSelection | Readonly<SelectableTreeNode>): void {
@@ -158,8 +183,8 @@ export class TreeSelectionServiceImpl implements TreeSelectionService {
 
         const oldState = this.state;
         const newState = this.state.nextState(selection);
-        const oldNodes = oldState.selectedNodes();
-        const newNodes = newState.selectedNodes();
+        const oldNodes = oldState.selection();
+        const newNodes = newState.selection();
 
         const toUnselect = this.difference(oldNodes, newNodes);
         const toSelect = this.difference(newNodes, oldNodes);
@@ -169,6 +194,9 @@ export class TreeSelectionServiceImpl implements TreeSelectionService {
 
         this.unselect(toUnselect);
         this.select(toSelect);
+        this.removeFocus(oldNodes, newNodes);
+        this.addFocus(newState.focus);
+
         this.state = newState;
         this.fireSelectionChanged();
     }
@@ -179,6 +207,16 @@ export class TreeSelectionServiceImpl implements TreeSelectionService {
 
     protected select(nodes: ReadonlyArray<SelectableTreeNode>): void {
         nodes.forEach(node => node.selected = true);
+    }
+
+    protected removeFocus(...nodes: ReadonlyArray<SelectableTreeNode>[]): void {
+        nodes.forEach(node => node.forEach(n => n.focus = false));
+    }
+
+    protected addFocus(node: SelectableTreeNode | undefined): void {
+        if (node) {
+            node.focus = true;
+        }
     }
 
     /**

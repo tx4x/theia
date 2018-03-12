@@ -13,7 +13,7 @@ import { Disposable, MenuPath } from "../../common";
 import { Key, KeyCode, KeyModifier } from "../keys";
 import { ContextMenuRenderer } from "../context-menu-renderer";
 import { StatefulWidget } from '../shell';
-import { VirtualWidget, VirtualRenderer, SELECTED_CLASS, COLLAPSED_CLASS } from "../widgets";
+import { VirtualWidget, VirtualRenderer, SELECTED_CLASS, COLLAPSED_CLASS, FOCUS_CLASS } from "../widgets";
 import { TreeNode, CompositeTreeNode } from "./tree";
 import { TreeModel } from "./tree-model";
 import { ExpandableTreeNode } from "./tree-expansion";
@@ -371,6 +371,9 @@ export class TreeWidget extends VirtualWidget implements StatefulWidget {
         }
         if (SelectableTreeNode.isSelected(node)) {
             classNames.push(SELECTED_CLASS);
+        }
+        if (SelectableTreeNode.hasFocus(node)) {
+            classNames.push(FOCUS_CLASS);
         }
         return classNames;
     }
