@@ -51,7 +51,7 @@
 }
 
 .theia-Tree:focus .theia-TreeNode.theia-mod-focus {
-    background: var(--theia-accent-color2);
+    background: var(--theia-accent-color3);
 }
 
 .theia-Tree:not(:focus) .theia-TreeNode.theia-mod-focus {

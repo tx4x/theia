@@ -134,9 +134,14 @@ export class TreeWidget extends VirtualWidget implements StatefulWidget {
     protected onUpdateRequest(msg: Message): void {
         super.onUpdateRequest(msg);
 
-        const selected = this.node.getElementsByClassName(SELECTED_CLASS)[0];
-        if (selected) {
-            ElementExt.scrollIntoViewIfNeeded(this.node, selected);
+        const focus = this.node.getElementsByClassName(FOCUS_CLASS)[0];
+        if (focus) {
+            ElementExt.scrollIntoViewIfNeeded(this.node, focus);
+        } else {
+            const selected = this.node.getElementsByClassName(SELECTED_CLASS)[0];
+            if (selected) {
+                ElementExt.scrollIntoViewIfNeeded(this.node, selected);
+            }
         }
     }
 
