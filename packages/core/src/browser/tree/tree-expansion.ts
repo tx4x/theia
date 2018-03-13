@@ -31,7 +31,7 @@ export interface ITreeExpansionService extends Disposable {
      *
      * Return true if a node has been collapsed; otherwise false.
      */
-    collapseNode(node: Readonly<IExpandableTreeNode>): boolean;
+    collapseNode(node: Readonly<IExpandableTreeNode>): Promise<boolean>;
     /**
      * If the given node is invalid then does nothing.
      * If the given node is collapsed then expand it; otherwise collapse it.
@@ -105,7 +105,7 @@ export class TreeExpansionService implements ITreeExpansionService {
         return true;
     }
 
-    collapseNode(raw: IExpandableTreeNode): boolean {
+    async collapseNode(raw: IExpandableTreeNode): Promise<boolean> {
         const node = this.tree.validateNode(raw);
         if (IExpandableTreeNode.isExpanded(node)) {
             return this.doCollapseNode(node);
@@ -121,7 +121,7 @@ export class TreeExpansionService implements ITreeExpansionService {
 
     async toggleNodeExpansion(node: IExpandableTreeNode): Promise<void> {
         if (node.expanded) {
-            this.collapseNode(node);
+            await this.collapseNode(node);
         } else {
             await this.expandNode(node);
         }

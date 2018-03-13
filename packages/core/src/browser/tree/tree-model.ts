@@ -26,7 +26,7 @@ export interface ITreeModel extends ITree, ITreeSelectionService, ITreeExpansion
     /**
      * Collapse a node taking into the account node selection if a given node is undefined.
      */
-    collapseNode(node?: Readonly<IExpandableTreeNode>): boolean;
+    collapseNode(node?: Readonly<IExpandableTreeNode>): Promise<boolean>;
     /**
      * Toggle node expansion taking into the account node selection if a given node is undefined.
      */
@@ -182,10 +182,10 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         return false;
     }
 
-    collapseNode(raw?: Readonly<IExpandableTreeNode>): boolean {
+    async collapseNode(raw?: Readonly<IExpandableTreeNode>): Promise<boolean> {
         const node = raw || this.selectedNode;
         if (IExpandableTreeNode.is(node)) {
-            return this.expansion.collapseNode(node);
+            return await this.expansion.collapseNode(node);
         }
         return false;
     }
