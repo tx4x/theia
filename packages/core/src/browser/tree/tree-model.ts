@@ -30,7 +30,7 @@ export interface ITreeModel extends ITree, ITreeSelectionService, ITreeExpansion
     /**
      * Toggle node expansion taking into the account node selection if a given node is undefined.
      */
-    toggleNodeExpansion(node?: Readonly<IExpandableTreeNode>): void;
+    toggleNodeExpansion(node?: Readonly<IExpandableTreeNode>): Promise<void>;
     /**
      * Select prev node relatively to the selected taking into account node expansion.
      */
@@ -55,7 +55,7 @@ export interface ITreeModel extends ITree, ITreeSelectionService, ITreeExpansion
      * Navigate to the given node if it is defined.
      * Navigation sets a node as a root node and expand it.
      */
-    navigateTo(node: ITreeNode | undefined): void;
+    navigateTo(node: ITreeNode | undefined): Promise<void>;
     /**
      * Test whether it is possible to navigate forward.
      */
@@ -67,11 +67,11 @@ export interface ITreeModel extends ITree, ITreeSelectionService, ITreeExpansion
     /**
      * Navigate forward.
      */
-    navigateForward(): void;
+    navigateForward(): Promise<void>;
     /**
      * Navigate backward.
      */
-    navigateBackward(): void;
+    navigateBackward(): Promise<void>;
 }
 
 @injectable()
@@ -150,11 +150,11 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         return this.tree.validateNode(node);
     }
 
-    refresh(parent?: Readonly<ICompositeTreeNode>): Promise<boolean> {
+    async refresh(parent?: Readonly<ICompositeTreeNode>): Promise<void> {
         if (parent) {
-            return this.tree.refresh(parent);
+            await this.tree.refresh(parent);
         } else {
-            return this.tree.refresh();
+            await this.tree.refresh();
         }
     }
 
@@ -174,15 +174,12 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         return this.expansion.onExpansionChanged;
     }
 
-    expandNode(raw?: Readonly<IExpandableTreeNode>): Promise<boolean> {
-        return new Promise((resolve: (arg: boolean) => void) => {
-            const node = raw || this.selectedNode;
-            if (IExpandableTreeNode.is(node)) {
-                this.expansion.expandNode(node).then(result => resolve(result));
-            } else {
-                resolve(false);
-            }
-        });
+    async expandNode(raw?: Readonly<IExpandableTreeNode>): Promise<boolean> {
+        const node = raw || this.selectedNode;
+        if (IExpandableTreeNode.is(node)) {
+            return await this.expansion.expandNode(node);
+        }
+        return false;
     }
 
     collapseNode(raw?: Readonly<IExpandableTreeNode>): boolean {
@@ -193,10 +190,10 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         return false;
     }
 
-    toggleNodeExpansion(raw?: Readonly<IExpandableTreeNode>): void {
+    async toggleNodeExpansion(raw?: Readonly<IExpandableTreeNode>): Promise<void> {
         const node = raw || this.selectedNode;
         if (IExpandableTreeNode.is(node)) {
-            this.expansion.toggleNodeExpansion(node);
+            await this.expansion.toggleNodeExpansion(node);
         }
     }
 
@@ -257,10 +254,10 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         }
     }
 
-    navigateTo(node: ITreeNode | undefined): void {
+    async navigateTo(node: ITreeNode | undefined): Promise<void> {
         if (node) {
             this.navigation.push(node);
-            this.doNavigate(node);
+            await this.doNavigate(node);
         }
     }
 
@@ -272,24 +269,24 @@ export class TreeModel implements ITreeModel, SelectionProvider<Readonly<ISelect
         return !!this.navigation.prev;
     }
 
-    navigateForward(): void {
+    async navigateForward(): Promise<void> {
         const node = this.navigation.advance();
         if (node) {
-            this.doNavigate(node);
+            await this.doNavigate(node);
         }
     }
 
-    navigateBackward(): void {
+    async navigateBackward(): Promise<void> {
         const node = this.navigation.retreat();
         if (node) {
-            this.doNavigate(node);
+            await this.doNavigate(node);
         }
     }
 
-    protected doNavigate(node: ITreeNode): void {
+    protected async doNavigate(node: ITreeNode): Promise<void> {
         this.tree.root = node;
         if (IExpandableTreeNode.is(node)) {
-            this.expandNode(node);
+            await this.expandNode(node);
         }
         if (ISelectableTreeNode.is(node)) {
             this.selectNode(node);

@@ -452,8 +452,8 @@ export class TreeWidget extends VirtualWidget implements StatefulWidget {
         }
     }
 
-    protected handleRight(): void {
-        if (!this.model.expandNode()) {
+    protected async handleRight(): Promise<void> {
+        if (! await this.model.expandNode()) {
             this.model.selectNextNode();
         }
     }
