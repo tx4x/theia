@@ -446,8 +446,8 @@ export class TreeWidget extends VirtualWidget implements StatefulWidget {
         this.addEventListener(this.node, 'click', e => this.handleClickEvent(this.model.root, e));
     }
 
-    protected handleLeft(): void {
-        if (!this.model.collapseNode()) {
+    protected async handleLeft(): Promise<void> {
+        if (! await this.model.collapseNode()) {
             this.model.selectParent();
         }
     }
